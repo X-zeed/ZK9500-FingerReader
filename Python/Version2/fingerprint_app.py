@@ -2,23 +2,19 @@
 Fingerprint Access Control System
 Clean Light UI — PyQt5
 """
-
 import sys, re, subprocess, os, time
 from datetime import datetime
 from dotenv import load_dotenv
 import psycopg2
-
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QLineEdit, QStackedWidget, QFrame,
-    QMessageBox, QGraphicsDropShadowEffect, QSizePolicy,
-    QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView,
-    QSpacerItem, QGridLayout, QScrollArea
+    QPushButton, QLabel, QLineEdit, QStackedWidget, QFrame, QMessageBox,
+    QGraphicsDropShadowEffect, QSizePolicy, QTableWidget, QTableWidgetItem,
+    QHeaderView, QAbstractItemView, QSpacerItem, QGridLayout, QScrollArea
 )
 from PyQt5.QtCore import (
     Qt, QThread, pyqtSignal, QTimer, QSize, QRect, QPoint,
-    QPropertyAnimation, QEasingCurve, QSequentialAnimationGroup,
-    QParallelAnimationGroup
+    QPropertyAnimation, QEasingCurve, QSequentialAnimationGroup, QParallelAnimationGroup
 )
 from PyQt5.QtGui import (
     QFont, QColor, QPalette, QPainter, QPen, QBrush,
@@ -29,47 +25,41 @@ from PyQt5.QtGui import (
 load_dotenv()
 
 # ══════════════════════════════════════════════════════════════
-#  PALETTE — Clean Light
+# PALETTE — Clean Light
 # ══════════════════════════════════════════════════════════════
 C = {
-    "bg":           "#F4F6F9",
-    "surface":      "#FFFFFF",
-    "panel":        "#EAECF0",
-    "card":         "#FFFFFF",
-    "elevated":     "#F0F2F5",
-    "border":       "#D8DCE3",
-    "border_hi":    "#B0B8C8",
-
-    "cyan":         "#1565C0",   # primary blue — buttons, accents
-    "cyan_dim":     "#5E92D2",
-    "cyan_glow":    "#E3EDF8",
-
-    "amber":        "#E65100",   # warning orange
-    "amber_dim":    "#F09060",
-    "amber_glow":   "#FFF3EC",
-
-    "green":        "#2E7D32",   # success green
-    "green_dim":    "#6AAF6E",
-    "green_glow":   "#EDF7ED",
-
-    "red":          "#C62828",   # danger red
-    "red_dim":      "#E07070",
-    "red_glow":     "#FDECEA",
-
-    "text":         "#1A2033",
-    "text_dim":     "#5A6478",
-    "text_muted":   "#9AA3B4",
-    "text_hi":      "#0D1117",
-
-    "grid":         "#F0F2F5",
+    "bg":          "#F4F6F9",
+    "surface":     "#FFFFFF",
+    "panel":       "#EAECF0",
+    "card":        "#FFFFFF",
+    "elevated":    "#F0F2F5",
+    "border":      "#D8DCE3",
+    "border_hi":   "#B0B8C8",
+    "cyan":        "#1565C0",   # primary blue
+    "cyan_dim":    "#5E92D2",
+    "cyan_glow":   "#E3EDF8",
+    "amber":       "#E65100",   # warning orange
+    "amber_dim":   "#F09060",
+    "amber_glow":  "#FFF3EC",
+    "green":       "#2E7D32",   # success green
+    "green_dim":   "#6AAF6E",
+    "green_glow":  "#EDF7ED",
+    "red":         "#C62828",   # danger red
+    "red_dim":     "#E07070",
+    "red_glow":    "#FDECEA",
+    "text":        "#1A2033",
+    "text_dim":    "#5A6478",
+    "text_muted":  "#9AA3B4",
+    "text_hi":     "#0D1117",
+    "grid":        "#F0F2F5",
 }
 
-FONT_MONO   = "Consolas"
-FONT_UI     = "Segoe UI"
+FONT_MONO = "Consolas"
+FONT_UI   = "Segoe UI"
 
 
 # ══════════════════════════════════════════════════════════════
-#  DATABASE
+# DATABASE
 # ══════════════════════════════════════════════════════════════
 def get_connection():
     return psycopg2.connect(
@@ -92,31 +82,37 @@ def extract_template(output):
 
 
 # ══════════════════════════════════════════════════════════════
-#  WORKER THREADS
+# WORKER THREADS
 # ══════════════════════════════════════════════════════════════
 class ScanWorker(QThread):
     captured = pyqtSignal(str)
     failed   = pyqtSignal(str)
+
     def run(self):
         try:
             r = subprocess.run(["Application/save.exe"], capture_output=True, text=True, timeout=15)
             t = extract_template(r.stdout)
-            if t: self.captured.emit(t)
-            else: self.failed.emit("ไม่พบ Template — วางนิ้วใหม่อีกครั้ง")
+            if t:
+                self.captured.emit(t)
+            else:
+                self.failed.emit("ไม่พบ Template — วางนิ้วใหม่อีกครั้ง")
         except Exception as e:
             self.failed.emit(str(e))
 
+
 class VerifyWorker(QThread):
-    matched    = pyqtSignal(str)
-    no_match   = pyqtSignal()
-    progress   = pyqtSignal(str)
-    error      = pyqtSignal(str)
+    matched  = pyqtSignal(str)
+    no_match = pyqtSignal()
+    progress = pyqtSignal(str)
+    error    = pyqtSignal(str)
+
     def run(self):
         try:
             r = subprocess.run(["Application/verify.exe"], capture_output=True, text=True, timeout=15)
             scan = extract_template(r.stdout)
             if not scan:
-                self.no_match.emit(); return
+                self.no_match.emit()
+                return
             conn = get_connection()
             cur  = conn.cursor()
             cur.execute("SELECT user_id, template FROM fingerprints")
@@ -130,29 +126,29 @@ class VerifyWorker(QThread):
                     capture_output=True, text=True)
                 try:
                     if int(cmp.stdout.strip()) > 60:
-                        self.matched.emit(str(uid)); return
-                except: continue
+                        self.matched.emit(str(uid))
+                        return
+                except:
+                    continue
             self.no_match.emit()
         except Exception as e:
             self.error.emit(str(e))
 
 
 # ══════════════════════════════════════════════════════════════
-#  CUSTOM WIDGETS
+# CUSTOM WIDGETS
 # ══════════════════════════════════════════════════════════════
-
 class ScannerRing(QWidget):
     """Animated fingerprint scanner ring — HMI style."""
 
     def __init__(self, size=200, parent=None):
         super().__init__(parent)
         self.setFixedSize(size, size)
-        self._state  = "idle"   # idle | scanning | success | fail | ready
+        self._state  = "idle"
         self._angle  = 0
         self._pulse  = 0.0
-        self._ripple = []       # list of (radius, alpha)
-
-        self._timer = QTimer(self)
+        self._ripple = []
+        self._timer  = QTimer(self)
         self._timer.timeout.connect(self._tick)
         self._timer.start(16)
 
@@ -165,16 +161,15 @@ class ScannerRing(QWidget):
     def _tick(self):
         self._angle = (self._angle + 2) % 360
         self._pulse = (self._pulse + 0.04) % (2 * 3.14159)
-
-        new_ripple = []
+        new_ripple  = []
         for r, a in self._ripple:
-            if a > 4: new_ripple.append((r + 1.5, a - 4))
+            if a > 4:
+                new_ripple.append((r + 1.5, a - 4))
         if self._state == "scanning" and len(self._ripple) < 4:
             import math
             if int(self._pulse * 10) % 15 == 0:
                 new_ripple.append((0, 255))
         self._ripple = new_ripple
-
         if self._state in ("scanning",):
             self.update()
 
@@ -182,89 +177,73 @@ class ScannerRing(QWidget):
         import math
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        w, h = self.width(), self.height()
+        w, h   = self.width(), self.height()
         cx, cy = w / 2, h / 2
-        R = w / 2 - 6
+        R      = w / 2 - 6
 
-        # ── color by state ──
-        if   self._state == "success":  c_main = QColor(C["green"]);  c_glow = QColor(C["green_glow"])
-        elif self._state == "fail":     c_main = QColor(C["red"]);    c_glow = QColor(C["red_glow"])
-        elif self._state == "scanning": c_main = QColor(C["cyan"]);   c_glow = QColor(C["cyan_glow"])
-        elif self._state == "ready":    c_main = QColor(C["amber"]);  c_glow = QColor(C["amber_glow"])
+        if   self._state == "success":  c_main = QColor(C["green"]); c_glow = QColor(C["green_glow"])
+        elif self._state == "fail":     c_main = QColor(C["red"]);   c_glow = QColor(C["red_glow"])
+        elif self._state == "scanning": c_main = QColor(C["cyan"]);  c_glow = QColor(C["cyan_glow"])
+        elif self._state == "ready":    c_main = QColor(C["amber"]); c_glow = QColor(C["amber_glow"])
         else:                           c_main = QColor(C["border_hi"]); c_glow = QColor(C["bg"])
 
         # glow background
         grad = QRadialGradient(cx, cy, R)
-        g1 = QColor(c_main); g1.setAlpha(30 if self._state != "idle" else 0)
-        g2 = QColor(Qt.transparent)
+        g1   = QColor(c_main); g1.setAlpha(30 if self._state != "idle" else 0)
         grad.setColorAt(0.4, g1)
-        grad.setColorAt(1.0, g2)
-        p.setPen(Qt.NoPen)
-        p.setBrush(grad)
+        grad.setColorAt(1.0, QColor(Qt.transparent))
+        p.setPen(Qt.NoPen); p.setBrush(grad)
         p.drawEllipse(int(cx - R), int(cy - R), int(R * 2), int(R * 2))
 
         # ripple rings
         for radius, alpha in self._ripple:
             rc = QColor(c_main); rc.setAlpha(int(alpha))
-            p.setPen(QPen(rc, 1.5))
-            p.setBrush(Qt.NoBrush)
+            p.setPen(QPen(rc, 1.5)); p.setBrush(Qt.NoBrush)
             rr = R * 0.4 + radius
             p.drawEllipse(int(cx - rr), int(cy - rr), int(rr * 2), int(rr * 2))
 
-        # outer track (dark ring)
-        p.setPen(QPen(QColor(C["border"]), 3))
-        p.setBrush(Qt.NoBrush)
+        # outer track
+        p.setPen(QPen(QColor(C["border"]), 3)); p.setBrush(Qt.NoBrush)
         p.drawEllipse(int(cx - R), int(cy - R), int(R * 2), int(R * 2))
 
-        # spinning arc (scanning only)
         if self._state == "scanning":
-            sweep = 110
-            pen_arc = QPen(c_main, 4)
-            pen_arc.setCapStyle(Qt.RoundCap)
+            sweep   = 110
+            pen_arc = QPen(c_main, 4); pen_arc.setCapStyle(Qt.RoundCap)
             p.setPen(pen_arc)
             p.drawArc(int(cx - R), int(cy - R), int(R * 2), int(R * 2),
-                      (self._angle * 16), sweep * 16)
-            # trailing arc (dimmer)
+                      self._angle * 16, sweep * 16)
             c_trail = QColor(c_main); c_trail.setAlpha(60)
-            pen_trail = QPen(c_trail, 2)
-            pen_trail.setCapStyle(Qt.RoundCap)
-            p.setPen(pen_trail)
+            pen_t   = QPen(c_trail, 2); pen_t.setCapStyle(Qt.RoundCap)
+            p.setPen(pen_t)
             p.drawArc(int(cx - R), int(cy - R), int(R * 2), int(R * 2),
-                      ((self._angle + sweep) * 16), 80 * 16)
+                      (self._angle + sweep) * 16, 80 * 16)
         else:
-            # solid ring for other states
-            pw = 3 if self._state == "idle" else 4
-            pen = QPen(c_main, pw)
-            p.setPen(pen)
+            p.setPen(QPen(c_main, 3 if self._state == "idle" else 4))
             p.drawEllipse(int(cx - R), int(cy - R), int(R * 2), int(R * 2))
 
-        # ── inner fingerprint icon ──
-        inner_r = R * 0.52
-        # inner dark bg
-        inner_grad = QRadialGradient(cx, cy, inner_r)
+        # inner disc
+        ir = R * 0.52
+        ig = QRadialGradient(cx, cy, ir)
         ib1 = QColor(C["card"]); ib1.setAlpha(240)
         ib2 = QColor(C["surface"]); ib2.setAlpha(200)
-        inner_grad.setColorAt(0, ib2)
-        inner_grad.setColorAt(1, ib1)
-        p.setPen(Qt.NoPen)
-        p.setBrush(inner_grad)
-        p.drawEllipse(int(cx - inner_r), int(cy - inner_r), int(inner_r * 2), int(inner_r * 2))
+        ig.setColorAt(0, ib2); ig.setColorAt(1, ib1)
+        p.setPen(Qt.NoPen); p.setBrush(ig)
+        p.drawEllipse(int(cx - ir), int(cy - ir), int(ir * 2), int(ir * 2))
 
-        # fingerprint ridge lines (concentric arcs)
+        # ridge lines
         pulse_val = math.sin(self._pulse)
         for i, (rr, span, offset) in enumerate([
-            (inner_r * 0.72, 150, 20),
-            (inner_r * 0.52, 170, 10),
-            (inner_r * 0.33, 180, 0),
-            (inner_r * 0.16, 360, 0),
+            (ir * 0.72, 150, 20),
+            (ir * 0.52, 170, 10),
+            (ir * 0.33, 180,  0),
+            (ir * 0.16, 360,  0),
         ]):
-            ridge_c = QColor(c_main)
+            rc    = QColor(c_main)
             alpha = 180 if self._state != "idle" else 70
             if self._state == "scanning":
                 alpha = int(100 + 80 * pulse_val)
-            ridge_c.setAlpha(alpha)
-            p.setPen(QPen(ridge_c, 1.8 if i < 2 else 1.4))
-            p.setBrush(Qt.NoBrush)
+            rc.setAlpha(alpha)
+            p.setPen(QPen(rc, 1.8 if i < 2 else 1.4)); p.setBrush(Qt.NoBrush)
             if i == 3:
                 p.drawEllipse(int(cx - rr), int(cy - rr), int(rr * 2), int(rr * 2))
             else:
@@ -272,58 +251,52 @@ class ScannerRing(QWidget):
                           int((200 + offset) * 16), int(span * 16))
 
         # center dot
-        dot_r = inner_r * 0.10
-        p.setPen(Qt.NoPen)
-        p.setBrush(c_main)
-        p.drawEllipse(int(cx - dot_r), int(cy - dot_r), int(dot_r * 2), int(dot_r * 2))
+        dr = ir * 0.10
+        p.setPen(Qt.NoPen); p.setBrush(c_main)
+        p.drawEllipse(int(cx - dr), int(cy - dr), int(dr * 2), int(dr * 2))
 
-        # corner brackets (HMI style)
-        blen = 14
-        gap  = 4
+        # corner brackets
+        blen, gap = 14, 4
         p.setPen(QPen(c_main, 2))
-        corners = [
-            (int(cx - R - gap), int(cy - R - gap), blen, blen, 1, 1),
-            (int(cx + R + gap - blen), int(cy - R - gap), blen, blen, -1, 1),
-            (int(cx - R - gap), int(cy + R + gap - blen), blen, blen, 1, -1),
+        for bx, by, bw, bh, dx, dy in [
+            (int(cx - R - gap),        int(cy - R - gap),        blen, blen,  1,  1),
+            (int(cx + R + gap - blen), int(cy - R - gap),        blen, blen, -1,  1),
+            (int(cx - R - gap),        int(cy + R + gap - blen), blen, blen,  1, -1),
             (int(cx + R + gap - blen), int(cy + R + gap - blen), blen, blen, -1, -1),
-        ]
-        for bx, by, bw, bh, dx, dy in corners:
-            p.drawLine(bx, by, bx + int(bw * dx * 0.5), by)           # h
-            p.drawLine(bx, by, bx, by + int(bh * dy * 0.5))           # v
+        ]:
+            p.drawLine(bx, by, bx + int(bw * dx * 0.5), by)
+            p.drawLine(bx, by, bx, by + int(bh * dy * 0.5))
 
         p.end()
 
 
 class StatusBar(QWidget):
-    """Top status bar with clock, system info."""
+    """Top status bar with clock and system info."""
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedHeight(52)
-        self.setStyleSheet(f"background-color: {C['surface']}; border-bottom: 1px solid {C['border']};")
-
+        self.setStyleSheet(
+            f"background-color: {C['surface']}; border-bottom: 1px solid {C['border']};"
+        )
         layout = QHBoxLayout(self)
         layout.setContentsMargins(24, 0, 24, 0)
 
-        # Left — system label
-        sys_lbl = QLabel("FINGERPRINT ACCESS CONTROL SYSTEM  v2.1")
+        sys_lbl = QLabel("FINGERPRINT ACCESS CONTROL SYSTEM v2")
         sys_lbl.setFont(QFont(FONT_MONO, 11, QFont.Bold))
         sys_lbl.setStyleSheet(f"color: {C['text_dim']}; letter-spacing: 2px;")
         layout.addWidget(sys_lbl)
-
         layout.addStretch()
 
-        # DB status
         self.db_indicator = QLabel("● DATABASE")
         self.db_indicator.setFont(QFont(FONT_MONO, 11))
         self.db_indicator.setStyleSheet(f"color: {C['green']};")
         layout.addWidget(self.db_indicator)
 
-        # separator
-        sep = QLabel("  |  ")
+        sep = QLabel(" | ")
         sep.setStyleSheet(f"color: {C['border_hi']};")
         layout.addWidget(sep)
 
-        # Clock
         self.clock = QLabel()
         self.clock.setFont(QFont(FONT_MONO, 13, QFont.Bold))
         self.clock.setStyleSheet(f"color: {C['text']};")
@@ -335,15 +308,12 @@ class StatusBar(QWidget):
         self._tick()
 
     def _tick(self):
-        self.clock.setText(datetime.now().strftime("%d/%m/%Y   %H:%M:%S"))
+        self.clock.setText(datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
 
     def set_db_status(self, ok):
-        if ok:
-            self.db_indicator.setText("● DATABASE")
-            self.db_indicator.setStyleSheet(f"color: {C['green']};")
-        else:
-            self.db_indicator.setText("● DATABASE")
-            self.db_indicator.setStyleSheet(f"color: {C['red']};")
+        self.db_indicator.setStyleSheet(
+            f"color: {C['green']};" if ok else f"color: {C['red']};"
+        )
 
 
 class NavButton(QPushButton):
@@ -351,8 +321,6 @@ class NavButton(QPushButton):
         super().__init__(parent)
         self.setCheckable(True)
         self.setFixedHeight(60)
-        self._icon_txt = icon
-        self._main_txt = text
         self.setText(f"{icon}\n{text}")
         self.setFont(QFont(FONT_UI, 8, QFont.Bold))
         self._apply_style(False)
@@ -394,7 +362,8 @@ class NavButton(QPushButton):
 
 
 class PanelCard(QFrame):
-    """Styled panel with optional title bar."""
+    """Styled panel card with optional title bar."""
+
     def __init__(self, title="", accent=None, parent=None):
         super().__init__(parent)
         self._accent = accent or C["cyan"]
@@ -433,10 +402,9 @@ class PanelCard(QFrame):
             lbl.setStyleSheet(f"color: {C['text_dim']}; letter-spacing: 2px;")
             h_layout.addWidget(lbl)
             h_layout.addStretch()
-
             layout.addWidget(header)
 
-        self.body = QWidget()
+        self.body        = QWidget()
         self.body_layout = QVBoxLayout(self.body)
         self.body_layout.setContentsMargins(16, 14, 16, 14)
         self.body_layout.setSpacing(10)
@@ -450,11 +418,12 @@ class PanelCard(QFrame):
         self.body_layout.addLayout(layout)
 
 
+# ── Helper factory functions ───────────────────────────────────
 def big_btn(text, color="cyan", icon=""):
-    btn = QPushButton(f"{icon}  {text}".strip())
+    btn = QPushButton(f"{icon} {text}".strip())
     btn.setMinimumHeight(58)
     btn.setFont(QFont(FONT_UI, 13, QFont.Bold))
-    c = C[color]
+    c       = C[color]
     c_hover = C[color + "_dim"]
     btn.setStyleSheet(f"""
         QPushButton {{
@@ -465,14 +434,8 @@ def big_btn(text, color="cyan", icon=""):
             letter-spacing: 0.5px;
             padding: 0 24px;
         }}
-        QPushButton:hover {{
-            background-color: {c_hover};
-            color: #FFFFFF;
-        }}
-        QPushButton:pressed {{
-            background-color: {c};
-            color: #FFFFFF;
-        }}
+        QPushButton:hover   {{ background-color: {c_hover}; color: #FFFFFF; }}
+        QPushButton:pressed {{ background-color: {c};       color: #FFFFFF; }}
         QPushButton:disabled {{
             background-color: {C['border']};
             color: {C['text_muted']};
@@ -480,7 +443,8 @@ def big_btn(text, color="cyan", icon=""):
     """)
     return btn
 
-def outline_btn(text, color="border_hi"):
+
+def outline_btn(text):
     btn = QPushButton(text)
     btn.setMinimumHeight(58)
     btn.setFont(QFont(FONT_UI, 12))
@@ -500,11 +464,13 @@ def outline_btn(text, color="border_hi"):
     """)
     return btn
 
+
 def field_label(text):
     lbl = QLabel(text.upper())
     lbl.setFont(QFont(FONT_MONO, 10))
     lbl.setStyleSheet(f"color: {C['text_dim']}; letter-spacing: 1.5px;")
     return lbl
+
 
 def styled_input(placeholder=""):
     inp = QLineEdit()
@@ -526,8 +492,9 @@ def styled_input(placeholder=""):
     """)
     return inp
 
+
 def status_badge(text, color):
-    lbl = QLabel(f"  {text}  ")
+    lbl = QLabel(f" {text} ")
     lbl.setFont(QFont(FONT_MONO, 10, QFont.Bold))
     lbl.setStyleSheet(f"""
         color: {color};
@@ -542,7 +509,7 @@ def status_badge(text, color):
 
 
 # ══════════════════════════════════════════════════════════════
-#  REGISTER PAGE
+# REGISTER PAGE
 # ══════════════════════════════════════════════════════════════
 class RegisterPage(QWidget):
     def __init__(self):
@@ -557,14 +524,14 @@ class RegisterPage(QWidget):
         root.setContentsMargins(28, 20, 28, 24)
         root.setSpacing(14)
 
-        # ── Page header
+        # ── Page header ──────────────────────────────────────
         hdr = QHBoxLayout()
         self.pg_title = QLabel("REGISTER NEW FINGERPRINT")
         self.pg_title.setFont(QFont(FONT_MONO, 17, QFont.Bold))
         self.pg_title.setStyleSheet(f"color: {C['text_hi']}; letter-spacing: 2px;")
         hdr.addWidget(self.pg_title)
         hdr.addStretch()
-        self.step_badge = status_badge("STEP 1 / 2  — SCAN", C["amber"])
+        self.step_badge = status_badge("STEP 1 / 2 — SCAN", C["amber"])
         hdr.addWidget(self.step_badge)
         root.addLayout(hdr)
 
@@ -572,11 +539,11 @@ class RegisterPage(QWidget):
         rule.setStyleSheet(f"color: {C['border']};")
         root.addWidget(rule)
 
-        # ── Main 2-column layout
+        # ── 2-column layout ──────────────────────────────────
         cols = QHBoxLayout()
         cols.setSpacing(20)
 
-        # ── LEFT column — scanner
+        # LEFT — scanner
         left = QVBoxLayout()
         left.setSpacing(12)
 
@@ -611,93 +578,83 @@ class RegisterPage(QWidget):
 
         cols.addLayout(left, 45)
 
-        # ── RIGHT column — form
+        # RIGHT — form
         right = QVBoxLayout()
         right.setSpacing(12)
 
-        # Template info panel
         form_panel = PanelCard("template information", C["amber"])
         form_panel.body_layout.setSpacing(12)
-
         form_panel.add(field_label("Template Name / Employee ID"))
-        self.name_input = styled_input("เช่น  EMP-0042 หรือ  สมชาย ใจดี")
+        self.name_input = styled_input("เช่น EMP-0042 หรือ สมชาย ใจดี")
         form_panel.add(self.name_input)
-
         form_panel.add(field_label("Template Status"))
         self.tpl_info = QLabel("— รอการสแกน —")
         self.tpl_info.setFont(QFont(FONT_MONO, 10))
         self.tpl_info.setStyleSheet(f"color: {C['text_muted']}; letter-spacing: 1px;")
         form_panel.add(self.tpl_info)
-
         right.addWidget(form_panel)
 
-        # Instructions panel
         instr_panel = PanelCard("instructions", C["text_dim"])
         instr_panel.body_layout.setSpacing(10)
-        steps = [
+        for num, desc in [
             ("01", "วางนิ้วมือบนเครื่องอ่านให้แน่บสนิท"),
             ("02", "กดปุ่ม CAPTURE และรอสัญญาณ"),
             ("03", "กรอกชื่อ / รหัสพนักงาน"),
             ("04", "กด SAVE TO DATABASE เพื่อยืนยัน"),
-        ]
-        for num, desc in steps:
+        ]:
             row = QHBoxLayout()
-            n_lbl = QLabel(num)
-            n_lbl.setFont(QFont(FONT_MONO, 11, QFont.Bold))
-            n_lbl.setFixedWidth(32)
-            n_lbl.setStyleSheet(f"color: {C['cyan']};")
-            d_lbl = QLabel(desc)
-            d_lbl.setFont(QFont(FONT_UI, 12))
-            d_lbl.setStyleSheet(f"color: {C['text_dim']};")
-            row.addWidget(n_lbl)
-            row.addWidget(d_lbl)
-            row.addStretch()
+            n   = QLabel(num)
+            n.setFont(QFont(FONT_MONO, 11, QFont.Bold))
+            n.setFixedWidth(32)
+            n.setStyleSheet(f"color: {C['cyan']};")
+            d   = QLabel(desc)
+            d.setFont(QFont(FONT_UI, 12))
+            d.setStyleSheet(f"color: {C['text_dim']};")
+            row.addWidget(n); row.addWidget(d); row.addStretch()
             instr_panel.body_layout.addLayout(row)
-
         right.addWidget(instr_panel)
+
         right.addStretch()
 
-        # Action button
+        # ── Action buttons row ────────────────────────────────
+        action_row = QHBoxLayout()
+        action_row.setSpacing(10)
+
+        self.cancel_btn = big_btn("CANCEL", "red", "✘")
+        self.cancel_btn.setEnabled(False)
+        self.cancel_btn.clicked.connect(self._reset)
+        action_row.addWidget(self.cancel_btn, 1)
+
         self.save_btn = big_btn("SAVE TO DATABASE", "green", "✔")
         self.save_btn.setEnabled(False)
         self.save_btn.clicked.connect(self._save)
-        right.addWidget(self.save_btn)
+        action_row.addWidget(self.save_btn, 2)
+
+        right.addLayout(action_row)
 
         cols.addLayout(right, 55)
         root.addLayout(cols)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self._scale_to_size()
+        h = self.height(); w = self.width()
+        self.ring.setFixedSize(
+            max(140, min(280, int(h * 0.38))),
+            max(140, min(280, int(h * 0.38)))
+        )
+        self.scan_status.setFont(QFont(FONT_MONO, max(13, min(24, int(h * 0.028))), QFont.Bold))
+        self.scan_detail.setFont(QFont(FONT_UI,   max(10, min(15, int(h * 0.016)))))
+        self.pg_title.setFont(QFont(FONT_MONO,    max(12, min(20, int(w * 0.013))), QFont.Bold))
 
-    def _scale_to_size(self):
-        """Dynamically scale ring size and fonts based on available height."""
-        h = self.height()
-        w = self.width()
-
-        # Ring: scale relative to available left-column height
-        ring_size = max(140, min(280, int(h * 0.38)))
-        self.ring.setFixedSize(ring_size, ring_size)
-
-        # Status text: scale with height
-        status_pt  = max(13, min(24, int(h * 0.028)))
-        detail_pt  = max(10, min(15, int(h * 0.016)))
-        title_pt   = max(12, min(20, int(w * 0.013)))
-
-        self.scan_status.setFont(QFont(FONT_MONO, status_pt, QFont.Bold))
-        self.scan_detail.setFont(QFont(FONT_UI, detail_pt))
-        self.pg_title.setFont(QFont(FONT_MONO, title_pt, QFont.Bold))
-
-    # ── Logic ──────────────────────────────────────────────────
+    # ── Logic ─────────────────────────────────────────────────
     def _capture(self):
         self.capture_btn.setEnabled(False)
+        self.cancel_btn.setEnabled(False)
         self.ring.set_state("scanning")
         self.scan_status.setText("SCANNING...")
         self.scan_status.setStyleSheet(f"color: {C['cyan']}; letter-spacing: 3px;")
         self.scan_detail.setText("กรุณาวางนิ้วมือ และอย่าขยับ")
-        self.step_badge.setText("  SCANNING...  ")
-        self.step_badge.setStyleSheet(f"color: {C['cyan']}; border: 1px solid {C['cyan']}; border-radius:2px; padding:3px 8px; letter-spacing:1px; font-family:{FONT_MONO}; font-size:10px; font-weight:700;")
-
+        self._set_badge("SCANNING...", C["cyan"])
         self._worker = ScanWorker()
         self._worker.captured.connect(self._on_captured)
         self._worker.failed.connect(self._on_failed)
@@ -709,12 +666,14 @@ class RegisterPage(QWidget):
         self.scan_status.setText("CAPTURED ✓")
         self.scan_status.setStyleSheet(f"color: {C['green']}; letter-spacing: 3px;")
         self.scan_detail.setText("สแกนสำเร็จ — กรอกข้อมูลด้านขวา แล้วกด SAVE")
-        self.tpl_info.setText(f"SIZE: {len(template):,} chars   |   {datetime.now().strftime('%H:%M:%S %d/%m/%Y')}")
+        self.tpl_info.setText(
+            f"SIZE: {len(template):,} chars | {datetime.now().strftime('%H:%M:%S %d/%m/%Y')}"
+        )
         self.tpl_info.setStyleSheet(f"color: {C['green']}; letter-spacing: 1px;")
-        self.save_btn.setEnabled(True)
         self.capture_btn.setEnabled(True)
-        self.step_badge.setText("  STEP 2 / 2  — SAVE  ")
-        self.step_badge.setStyleSheet(f"color: {C['green']}; border: 1px solid {C['green']}; border-radius:2px; padding:3px 8px; letter-spacing:1px; font-family:{FONT_MONO}; font-size:10px; font-weight:700;")
+        self.save_btn.setEnabled(True)
+        self.cancel_btn.setEnabled(True)      # ← เปิดใช้งานหลังสแกนสำเร็จ
+        self._set_badge("STEP 2 / 2 — SAVE", C["green"])
 
     def _on_failed(self, msg):
         self.ring.set_state("fail")
@@ -722,7 +681,7 @@ class RegisterPage(QWidget):
         self.scan_status.setStyleSheet(f"color: {C['red']}; letter-spacing: 3px;")
         self.scan_detail.setText(msg)
         self.capture_btn.setEnabled(True)
-        self.step_badge.setText("  STEP 1 / 2  — RETRY  ")
+        self._set_badge("STEP 1 / 2 — RETRY", C["red"])
 
     def _save(self):
         name = self.name_input.text().strip()
@@ -735,17 +694,16 @@ class RegisterPage(QWidget):
         try:
             conn = get_connection()
             cur  = conn.cursor()
-            cur.execute("""
-                INSERT INTO fingerprints (user_id, template, template_size)
-                VALUES (%s, %s, %s)
-            """, (name, self._template.encode(), len(self._template)))
+            cur.execute(
+                "INSERT INTO fingerprints (user_id, template, template_size) VALUES (%s, %s, %s)",
+                (name, self._template.encode(), len(self._template))
+            )
             conn.commit(); cur.close(); conn.close()
-
             dlg = QMessageBox(self)
             dlg.setWindowTitle("บันทึกสำเร็จ")
             dlg.setIcon(QMessageBox.Information)
-            dlg.setText(f"✔  บันทึก '{name}' เรียบร้อยแล้ว")
-            dlg.setStyleSheet(f"background:{C['card']}; color:{C['text']}; font-family: {FONT_UI};")
+            dlg.setText(f"✔ บันทึก '{name}' เรียบร้อยแล้ว")
+            dlg.setStyleSheet(f"background:{C['card']}; color:{C['text']}; font-family:{FONT_UI};")
             dlg.exec_()
             self._reset()
         except Exception as e:
@@ -768,14 +726,22 @@ class RegisterPage(QWidget):
         self.name_input.clear()
         self.tpl_info.setText("— รอการสแกน —")
         self.tpl_info.setStyleSheet(f"color: {C['text_muted']}; letter-spacing: 1px;")
-        self.save_btn.setEnabled(False)
         self.capture_btn.setEnabled(True)
-        self.step_badge.setText("  STEP 1 / 2  — SCAN  ")
-        self.step_badge.setStyleSheet(f"color: {C['amber']}; border: 1px solid {C['amber']}; border-radius:2px; padding:3px 8px; letter-spacing:1px; font-family:{FONT_MONO}; font-size:10px; font-weight:700;")
+        self.save_btn.setEnabled(False)
+        self.cancel_btn.setEnabled(False)     # ← ปิดใช้งานเมื่อ reset
+        self._set_badge("STEP 1 / 2 — SCAN", C["amber"])
+
+    def _set_badge(self, text, color):
+        self.step_badge.setText(f" {text} ")
+        self.step_badge.setStyleSheet(
+            f"color:{color}; border:1px solid {color}; border-radius:2px; "
+            f"padding:3px 8px; letter-spacing:1px; "
+            f"font-family:{FONT_MONO}; font-size:10px; font-weight:700;"
+        )
 
 
 # ══════════════════════════════════════════════════════════════
-#  VERIFY PAGE
+# VERIFY PAGE
 # ══════════════════════════════════════════════════════════════
 class VerifyPage(QWidget):
     def __init__(self):
@@ -803,14 +769,10 @@ class VerifyPage(QWidget):
         rule.setStyleSheet(f"color: {C['border']};")
         root.addWidget(rule)
 
-        # Main layout
-        cols = QHBoxLayout()
-        cols.setSpacing(20)
+        cols = QHBoxLayout(); cols.setSpacing(20)
 
-        # ── LEFT — scanner + result
-        left = QVBoxLayout()
-        left.setSpacing(14)
-
+        # LEFT — scanner
+        left = QVBoxLayout(); left.setSpacing(14)
         scan_panel = PanelCard("scanner unit", C["cyan"])
         s_body = QVBoxLayout()
         s_body.setContentsMargins(24, 24, 24, 24)
@@ -840,14 +802,11 @@ class VerifyPage(QWidget):
         self.verify_btn.setMinimumHeight(58)
         self.verify_btn.clicked.connect(self._verify)
         left.addWidget(self.verify_btn)
-
         cols.addLayout(left, 50)
 
-        # ── RIGHT — result + log
-        right = QVBoxLayout()
-        right.setSpacing(14)
+        # RIGHT — result + log
+        right = QVBoxLayout(); right.setSpacing(14)
 
-        # Result panel
         result_panel = PanelCard("access result", C["cyan"])
         result_panel.body_layout.setSpacing(6)
         result_panel.body_layout.setContentsMargins(24, 20, 24, 20)
@@ -870,19 +829,15 @@ class VerifyPage(QWidget):
         self.result_time.setAlignment(Qt.AlignCenter)
         self.result_time.setStyleSheet(f"color: {C['text_muted']};")
         result_panel.add(self.result_time)
-
         right.addWidget(result_panel)
 
-        # Log panel
         log_panel = PanelCard("access log", C["text_dim"])
         log_panel.setMinimumHeight(160)
-
         self._log_rows = []
-        self.log_grid = QVBoxLayout()
+        self.log_grid  = QVBoxLayout()
         self.log_grid.setSpacing(4)
         log_panel.body_layout.addLayout(self.log_grid)
         log_panel.body_layout.addStretch()
-
         right.addWidget(log_panel, 1)
 
         cols.addLayout(right, 50)
@@ -890,16 +845,12 @@ class VerifyPage(QWidget):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        h = self.height()
-        w = self.width()
-        ring_size = max(160, min(320, int(h * 0.42)))
-        self.ring.setFixedSize(ring_size, ring_size)
-        status_pt = max(14, min(26, int(h * 0.030)))
-        detail_pt = max(10, min(15, int(h * 0.017)))
-        title_pt  = max(12, min(20, int(w * 0.013)))
-        self.status_lbl.setFont(QFont(FONT_MONO, status_pt, QFont.Bold))
-        self.sub_lbl.setFont(QFont(FONT_UI, detail_pt))
-        self.pg_title.setFont(QFont(FONT_MONO, title_pt, QFont.Bold))
+        h = self.height(); w = self.width()
+        rs = max(160, min(320, int(h * 0.42)))
+        self.ring.setFixedSize(rs, rs)
+        self.status_lbl.setFont(QFont(FONT_MONO, max(14, min(26, int(h * 0.030))), QFont.Bold))
+        self.sub_lbl.setFont(QFont(FONT_UI,       max(10, min(15, int(h * 0.017)))))
+        self.pg_title.setFont(QFont(FONT_MONO,    max(12, min(20, int(w * 0.013))), QFont.Bold))
 
     def _verify(self):
         self.verify_btn.setEnabled(False)
@@ -907,13 +858,11 @@ class VerifyPage(QWidget):
         self.status_lbl.setText("SCANNING...")
         self.status_lbl.setStyleSheet(f"color: {C['cyan']}; letter-spacing: 4px;")
         self.sub_lbl.setText("วางนิ้วมือบนเครื่องอ่าน")
-        self.mode_badge.setText("  SCANNING  ")
-        self.mode_badge.setStyleSheet(f"color: {C['cyan']}; border: 1px solid {C['cyan']}; border-radius:2px; padding:2px 6px; letter-spacing:1px;")
+        self._set_mode_badge("SCANNING", C["cyan"])
         self.result_icon.setText("◌")
         self.result_icon.setStyleSheet(f"color: {C['cyan']};")
         self.result_name.setText("PROCESSING...")
         self.result_name.setStyleSheet(f"color: {C['cyan']}; letter-spacing: 2px;")
-
         self._worker = VerifyWorker()
         self._worker.matched.connect(self._on_match)
         self._worker.no_match.connect(self._on_no_match)
@@ -930,10 +879,9 @@ class VerifyPage(QWidget):
         self.result_icon.setText("✔")
         self.result_icon.setStyleSheet(f"color: {C['green']}; font-size: 52px;")
         self.result_name.setText(uid)
-        self.result_name.setStyleSheet(f"color: {C['green']}; font-size:18px; letter-spacing: 2px;")
-        self.result_time.setText(datetime.now().strftime("เวลา  %H:%M:%S  —  %d/%m/%Y"))
-        self.mode_badge.setText("  GRANTED  ")
-        self.mode_badge.setStyleSheet(f"color: {C['green']}; border: 1px solid {C['green']}; border-radius:2px; padding:2px 6px; letter-spacing:1px;")
+        self.result_name.setStyleSheet(f"color: {C['green']}; font-size:18px; letter-spacing:2px;")
+        self.result_time.setText(datetime.now().strftime("เวลา %H:%M:%S — %d/%m/%Y"))
+        self._set_mode_badge("GRANTED", C["green"])
         self._add_log(uid, "GRANTED", C["green"])
 
     def _on_no_match(self):
@@ -944,10 +892,9 @@ class VerifyPage(QWidget):
         self.result_icon.setText("✘")
         self.result_icon.setStyleSheet(f"color: {C['red']}; font-size: 52px;")
         self.result_name.setText("UNKNOWN USER")
-        self.result_name.setStyleSheet(f"color: {C['red']}; font-size:18px; letter-spacing: 2px;")
-        self.result_time.setText(datetime.now().strftime("เวลา  %H:%M:%S  —  %d/%m/%Y"))
-        self.mode_badge.setText("  DENIED  ")
-        self.mode_badge.setStyleSheet(f"color: {C['red']}; border: 1px solid {C['red']}; border-radius:2px; padding:2px 6px; letter-spacing:1px;")
+        self.result_name.setStyleSheet(f"color: {C['red']}; font-size:18px; letter-spacing:2px;")
+        self.result_time.setText(datetime.now().strftime("เวลา %H:%M:%S — %d/%m/%Y"))
+        self._set_mode_badge("DENIED", C["red"])
         self._add_log("UNKNOWN", "DENIED", C["red"])
 
     def _on_error(self, msg):
@@ -960,40 +907,37 @@ class VerifyPage(QWidget):
         self.result_name.setText("SYSTEM ERROR")
         self.result_name.setStyleSheet(f"color: {C['amber']}; letter-spacing: 2px;")
 
+    def _set_mode_badge(self, text, color):
+        self.mode_badge.setText(f" {text} ")
+        self.mode_badge.setStyleSheet(
+            f"color:{color}; border:1px solid {color}; border-radius:2px; "
+            f"padding:2px 6px; letter-spacing:1px;"
+        )
+
     def _add_log(self, uid, status, color):
-        row = QHBoxLayout()
-        row.setSpacing(10)
-        t  = QLabel(datetime.now().strftime("%H:%M:%S"))
-        t.setFont(QFont(FONT_MONO, 10))
-        t.setFixedWidth(76)
+        row = QHBoxLayout(); row.setSpacing(10)
+        t = QLabel(datetime.now().strftime("%H:%M:%S"))
+        t.setFont(QFont(FONT_MONO, 10)); t.setFixedWidth(76)
         t.setStyleSheet(f"color: {C['text_muted']};")
-
-        u  = QLabel(uid[:24])
-        u.setFont(QFont(FONT_MONO, 11))
+        u = QLabel(uid[:24]); u.setFont(QFont(FONT_MONO, 11))
         u.setStyleSheet(f"color: {C['text']};")
-
-        s  = QLabel(status)
-        s.setFont(QFont(FONT_MONO, 10, QFont.Bold))
+        s = QLabel(status); s.setFont(QFont(FONT_MONO, 10, QFont.Bold))
         s.setAlignment(Qt.AlignRight)
         s.setStyleSheet(f"color: {color}; letter-spacing:1px;")
-
-        row.addWidget(t)
-        row.addWidget(u, 1)
-        row.addWidget(s)
-
-        wrapper = QWidget()
-        wrapper.setLayout(row)
-        wrapper.setStyleSheet(f"background: {C['elevated']}; border-radius: 3px; padding: 3px 6px; border-left: 2px solid {color};")
-
+        row.addWidget(t); row.addWidget(u, 1); row.addWidget(s)
+        wrapper = QWidget(); wrapper.setLayout(row)
+        wrapper.setStyleSheet(
+            f"background:{C['elevated']}; border-radius:3px; "
+            f"padding:3px 6px; border-left:2px solid {color};"
+        )
         self.log_grid.insertWidget(0, wrapper)
         self._log_rows.append(wrapper)
         if len(self._log_rows) > 8:
-            old = self._log_rows.pop()
-            old.deleteLater()
+            old = self._log_rows.pop(); old.deleteLater()
 
 
 # ══════════════════════════════════════════════════════════════
-#  RECORDS PAGE
+# RECORDS PAGE
 # ══════════════════════════════════════════════════════════════
 class RecordsPage(QWidget):
     def __init__(self):
@@ -1012,13 +956,10 @@ class RecordsPage(QWidget):
         self.pg_title.setStyleSheet(f"color: {C['text_hi']}; letter-spacing: 2px;")
         hdr.addWidget(self.pg_title)
         hdr.addStretch()
-
         self.count_badge = status_badge("0 RECORDS", C["text_dim"])
         hdr.addWidget(self.count_badge)
-
-        refresh = outline_btn("↺  REFRESH")
-        refresh.setMinimumHeight(36)
-        refresh.setMaximumWidth(130)
+        refresh = outline_btn("↺ REFRESH")
+        refresh.setMinimumHeight(36); refresh.setMaximumWidth(130)
         refresh.setFont(QFont(FONT_UI, 9))
         refresh.clicked.connect(self._load)
         hdr.addWidget(refresh)
@@ -1028,7 +969,6 @@ class RecordsPage(QWidget):
         rule.setStyleSheet(f"color: {C['border']};")
         root.addWidget(rule)
 
-        # Search bar
         srch_row = QHBoxLayout()
         self.search = styled_input("ค้นหา ID หรือชื่อ...")
         self.search.setMaximumHeight(38)
@@ -1036,7 +976,6 @@ class RecordsPage(QWidget):
         srch_row.addWidget(self.search)
         root.addLayout(srch_row)
 
-        # Table
         self.table = QTableWidget()
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(["#", "USER ID / NAME", "TEMPLATE SIZE", "REGISTERED"])
@@ -1049,65 +988,22 @@ class RecordsPage(QWidget):
         self.table.setAlternatingRowColors(True)
         self.table.setShowGrid(False)
         self.table.verticalHeader().setVisible(False)
-        self.table.setStyleSheet(f"""
-            QTableWidget {{
-                background-color: {C['surface']};
-                border: 1px solid {C['border']};
-                border-radius: 4px;
-                font-family: {FONT_MONO};
-                font-size: 13px;
-                color: {C['text']};
-                outline: none;
-                gridline-color: {C['border']};
-            }}
-            QTableWidget::item {{
-                padding: 12px 16px;
-                border-bottom: 1px solid {C['elevated']};
-            }}
-            QTableWidget::item:selected {{
-                background-color: {C['cyan_glow']};
-                color: {C['cyan']};
-            }}
-            QTableWidget::item:alternate {{
-                background-color: {C['bg']};
-            }}
-            QHeaderView::section {{
-                background-color: {C['elevated']};
-                color: {C['text_dim']};
-                font-family: {FONT_MONO};
-                font-size: 11px;
-                font-weight: 700;
-                letter-spacing: 2px;
-                border: none;
-                border-bottom: 1px solid {C['border']};
-                border-right: 1px solid {C['border']};
-                padding: 12px 16px;
-            }}
-        """)
+        self._apply_table_style(13, 11)
         root.addWidget(self.table)
 
         self._all_rows = []
         self._load()
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        w = self.width()
-        h = self.height()
-        title_pt  = max(12, min(20, int(w * 0.013)))
-        table_pt  = max(11, min(16, int(h * 0.018)))
-        header_pt = max(9,  min(14, int(h * 0.015)))
-        row_h     = max(38, min(56, int(h * 0.065)))
-        self.pg_title.setFont(QFont(FONT_MONO, title_pt, QFont.Bold))
+    def _apply_table_style(self, body_pt, hdr_pt):
         self.table.setStyleSheet(f"""
             QTableWidget {{
                 background-color: {C['surface']};
                 border: 1px solid {C['border']};
                 border-radius: 4px;
                 font-family: {FONT_MONO};
-                font-size: {table_pt}px;
+                font-size: {body_pt}px;
                 color: {C['text']};
                 outline: none;
-                gridline-color: {C['border']};
             }}
             QTableWidget::item {{
                 padding: 10px 16px;
@@ -1124,7 +1020,7 @@ class RecordsPage(QWidget):
                 background-color: {C['elevated']};
                 color: {C['text_dim']};
                 font-family: {FONT_MONO};
-                font-size: {header_pt}px;
+                font-size: {hdr_pt}px;
                 font-weight: 700;
                 letter-spacing: 2px;
                 border: none;
@@ -1133,7 +1029,16 @@ class RecordsPage(QWidget):
                 padding: 10px 16px;
             }}
         """)
-        # update row heights
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        h = self.height(); w = self.width()
+        self.pg_title.setFont(QFont(FONT_MONO, max(12, min(20, int(w * 0.013))), QFont.Bold))
+        self._apply_table_style(
+            max(11, min(16, int(h * 0.018))),
+            max(9,  min(14, int(h * 0.015)))
+        )
+        row_h = max(38, min(56, int(h * 0.065)))
         for i in range(self.table.rowCount()):
             self.table.setRowHeight(i, row_h)
 
@@ -1141,7 +1046,9 @@ class RecordsPage(QWidget):
         try:
             conn = get_connection()
             cur  = conn.cursor()
-            cur.execute("SELECT id, user_id, template_size, created_at FROM fingerprints ORDER BY id DESC")
+            cur.execute(
+                "SELECT id, user_id, template_size, created_at FROM fingerprints ORDER BY id DESC"
+            )
             self._all_rows = cur.fetchall()
             cur.close(); conn.close()
             self._render(self._all_rows)
@@ -1159,22 +1066,24 @@ class RecordsPage(QWidget):
             self.table.setItem(i, 2, QTableWidgetItem(f"{sz:,} B"))
             self.table.setItem(i, 3, QTableWidgetItem(str(ts)[:19] if ts != "—" else "—"))
             self.table.setRowHeight(i, row_h)
-
-        n = len(rows)
-        self.count_badge.setText(f"  {n} RECORD{'S' if n != 1 else ''}  ")
+        n     = len(rows)
         color = C["cyan"] if n > 0 else C["text_dim"]
-        self.count_badge.setStyleSheet(f"color:{color}; border:1px solid {color}; border-radius:2px; padding:3px 8px; letter-spacing:1px; font-family:{FONT_MONO}; font-size:10px; font-weight:700;")
+        self.count_badge.setText(f" {n} RECORD{'S' if n != 1 else ''} ")
+        self.count_badge.setStyleSheet(
+            f"color:{color}; border:1px solid {color}; border-radius:2px; "
+            f"padding:3px 8px; letter-spacing:1px; "
+            f"font-family:{FONT_MONO}; font-size:10px; font-weight:700;"
+        )
 
     def _filter(self, text):
         if not text:
             self._render(self._all_rows)
             return
-        filtered = [r for r in self._all_rows if text.lower() in str(r[1]).lower()]
-        self._render(filtered)
+        self._render([r for r in self._all_rows if text.lower() in str(r[1]).lower()])
 
 
 # ══════════════════════════════════════════════════════════════
-#  MAIN WINDOW
+# MAIN WINDOW
 # ══════════════════════════════════════════════════════════════
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -1192,19 +1101,16 @@ class MainWindow(QMainWindow):
         root_v.setContentsMargins(0, 0, 0, 0)
         root_v.setSpacing(0)
 
-        # ── Status bar (top)
+        # Status bar
         self.status_bar = StatusBar()
         root_v.addWidget(self.status_bar)
 
-        # ── Tab nav bar
+        # Nav bar
         self.nav_bar = QFrame()
         self.nav_bar.setFixedHeight(84)
-        self.nav_bar.setStyleSheet(f"""
-            QFrame {{
-                background-color: {C['surface']};
-                border-bottom: 1px solid {C['border']};
-            }}
-        """)
+        self.nav_bar.setStyleSheet(
+            f"QFrame {{ background-color: {C['surface']}; border-bottom: 1px solid {C['border']}; }}"
+        )
         nav_layout = QHBoxLayout(self.nav_bar)
         nav_layout.setContentsMargins(0, 0, 0, 0)
         nav_layout.setSpacing(0)
@@ -1221,47 +1127,38 @@ class MainWindow(QMainWindow):
             nav_layout.addWidget(tab)
 
         nav_layout.addStretch()
-
-        # version tag
-        ver = QLabel("FP-SYSTEM  BUILD 2025")
+        ver = QLabel("FP-SYSTEM BUILD 2025")
         ver.setFont(QFont(FONT_MONO, 8))
         ver.setStyleSheet(f"color: {C['text_muted']}; padding-right: 20px; letter-spacing: 1px;")
         nav_layout.addWidget(ver)
-
         root_v.addWidget(self.nav_bar)
 
-        # ── Page stack
+        # Page stack
         self.stack = QStackedWidget()
         self.stack.setStyleSheet(f"background: {C['bg']};")
-
         self.page_reg    = RegisterPage()
         self.page_verify = VerifyPage()
         self.page_rec    = RecordsPage()
-
         self.stack.addWidget(self.page_reg)
         self.stack.addWidget(self.page_verify)
         self.stack.addWidget(self.page_rec)
-
         root_v.addWidget(self.stack)
 
-        # ── Bottom footer bar
+        # Footer
         footer = QFrame()
         footer.setFixedHeight(36)
         footer.setStyleSheet(f"background: {C['surface']}; border-top: 1px solid {C['border']};")
         f_layout = QHBoxLayout(footer)
         f_layout.setContentsMargins(24, 0, 24, 0)
-
-        left_f  = QLabel("● READY")
+        left_f = QLabel("● READY")
         left_f.setFont(QFont(FONT_MONO, 10))
         left_f.setStyleSheet(f"color: {C['green']};")
         f_layout.addWidget(left_f)
         f_layout.addStretch()
-
-        right_f = QLabel("© 2025  Fingerprint ACS  |  Powered by INTEGRATED SUPPLIES")
+        right_f = QLabel("© 2025 Fingerprint ACS | Powered by INTEGRATED SUPPLIES")
         right_f.setFont(QFont(FONT_MONO, 10))
         right_f.setStyleSheet(f"color: {C['text_muted']};")
         f_layout.addWidget(right_f)
-
         root_v.addWidget(footer)
 
         # Wire nav
@@ -1271,37 +1168,29 @@ class MainWindow(QMainWindow):
 
     def _nav(self, idx):
         self.stack.setCurrentIndex(idx)
-        tabs = [self.tab_register, self.tab_verify, self.tab_records]
-        for i, t in enumerate(tabs):
+        for i, t in enumerate([self.tab_register, self.tab_verify, self.tab_records]):
             t.setChecked(i == idx)
         if idx == 2:
             self.page_rec._load()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        w = self.width()
         h = self.height()
-        # Scale nav tab height and font with window height
         nav_h    = max(60, min(100, int(h * 0.11)))
         tab_font = max(9,  min(14,  int(h * 0.015)))
         self.nav_bar.setFixedHeight(nav_h)
         for tab in [self.tab_register, self.tab_verify, self.tab_records]:
             tab.setFixedHeight(nav_h - 4)
             tab.setFont(QFont(FONT_UI, tab_font, QFont.Bold))
-        # Scale status bar height
-        sb_h      = max(40, min(60, int(h * 0.07)))
-        sb_font   = max(9,  min(13, int(h * 0.015)))
-        sb_clk    = max(10, min(15, int(h * 0.018)))
-        self.status_bar.setFixedHeight(sb_h)
+        self.status_bar.setFixedHeight(max(40, min(60, int(h * 0.07))))
 
 
 # ══════════════════════════════════════════════════════════════
-#  ENTRY
+# ENTRY
 # ══════════════════════════════════════════════════════════════
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
-
     pal = QPalette()
     pal.setColor(QPalette.Window,          QColor(C["bg"]))
     pal.setColor(QPalette.WindowText,      QColor(C["text"]))
@@ -1315,7 +1204,6 @@ if __name__ == "__main__":
     pal.setColor(QPalette.Mid,             QColor(C["border"]))
     pal.setColor(QPalette.Dark,            QColor(C["border_hi"]))
     app.setPalette(pal)
-
     w = MainWindow()
     w.show()
     sys.exit(app.exec_())
