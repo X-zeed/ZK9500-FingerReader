@@ -1,7 +1,4 @@
-"""
-Fingerprint Access Control System
-Clean Light UI — PyQt5
-"""
+from custom_dialog import Dialog
 import sys, re, subprocess, os, time
 from datetime import datetime
 from dotenv import load_dotenv
@@ -686,10 +683,10 @@ class RegisterPage(QWidget):
     def _save(self):
         name = self.name_input.text().strip()
         if not name:
-            self._flash_error("กรุณากรอกชื่อ / Template Name ก่อนบันทึก")
+            Dialog.error(self, "ข้อผิดพลาด", "กรุณากรอกชื่อ / Template Name ก่อนบันทึก")
             return
         if not self._template:
-            self._flash_error("ไม่มี Template — กรุณาสแกนก่อน")
+            Dialog.error(self, "ข้อผิดพลาด", "ไม่มี Template — กรุณาสแกนก่อน")
             return
         try:
             conn = get_connection()
@@ -699,23 +696,13 @@ class RegisterPage(QWidget):
                 (name, self._template.encode(), len(self._template))
             )
             conn.commit(); cur.close(); conn.close()
-            dlg = QMessageBox(self)
-            dlg.setWindowTitle("บันทึกสำเร็จ")
-            dlg.setIcon(QMessageBox.Information)
-            dlg.setText(f"✔ บันทึก '{name}' เรียบร้อยแล้ว")
-            dlg.setStyleSheet(f"background:{C['card']}; color:{C['text']}; font-family:{FONT_UI};")
-            dlg.exec_()
+            Dialog.success(self, "บันทึกสำเร็จ", f"บันทึก '{name}' เรียบร้อยแล้ว")
             self._reset()
         except Exception as e:
-            self._flash_error(str(e))
-
+            Dialog.error(self, "ข้อผิดพลาด", str(e))
+    
     def _flash_error(self, msg):
-        dlg = QMessageBox(self)
-        dlg.setWindowTitle("ข้อผิดพลาด")
-        dlg.setIcon(QMessageBox.Warning)
-        dlg.setText(msg)
-        dlg.setStyleSheet(f"background:{C['card']}; color:{C['text']};")
-        dlg.exec_()
+        Dialog.error(self, "ข้อผิดพลาด", msg)
 
     def _reset(self):
         self._template = None
@@ -880,7 +867,8 @@ class VerifyPage(QWidget):
         self.result_icon.setStyleSheet(f"color: {C['green']}; font-size: 52px;")
         self.result_name.setText(uid)
         self.result_name.setStyleSheet(f"color: {C['green']}; font-size:18px; letter-spacing:2px;")
-        self.result_time.setText(datetime.now().strftime("เวลา %H:%M:%S — %d/%m/%Y"))
+        now = datetime.now()
+        self.result_time.setText(f"เวลา {now:%H:%M:%S — %d/%m/%Y}")
         self._set_mode_badge("GRANTED", C["green"])
         self._add_log(uid, "GRANTED", C["green"])
 
@@ -893,7 +881,8 @@ class VerifyPage(QWidget):
         self.result_icon.setStyleSheet(f"color: {C['red']}; font-size: 52px;")
         self.result_name.setText("UNKNOWN USER")
         self.result_name.setStyleSheet(f"color: {C['red']}; font-size:18px; letter-spacing:2px;")
-        self.result_time.setText(datetime.now().strftime("เวลา %H:%M:%S — %d/%m/%Y"))
+        now = datetime.now()
+        self.result_time.setText(f"เวลา {now:%H:%M:%S — %d/%m/%Y}")
         self._set_mode_badge("DENIED", C["red"])
         self._add_log("UNKNOWN", "DENIED", C["red"])
 
@@ -1053,7 +1042,7 @@ class RecordsPage(QWidget):
             cur.close(); conn.close()
             self._render(self._all_rows)
         except Exception as e:
-            QMessageBox.critical(self, "Database Error", str(e))
+            Dialog.error(self, "Database Error", str(e))
 
     def _render(self, rows):
         self.table.setRowCount(len(rows))
