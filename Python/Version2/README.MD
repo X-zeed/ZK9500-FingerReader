@@ -37,7 +37,7 @@ project/
 ## ⚙️ Installation
 
 ```bash
-pip install psycopg2-binary python-dotenv PyQt5
+python -m pip install psycopg2-binary python-dotenv PyQt5
 ```
 
 ---
@@ -214,3 +214,4 @@ StatusBar     IconWidget  CustomDialog
 ## 📜 License
 
 Private / Internal Use Only — Not for redistribution
+
